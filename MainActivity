@@ -1,0 +1,64 @@
+package com.example.ngaylol;
+
+import android.os.Bundle;
+import android.util.Log;
+import android.widget.TextView;
+import android.widget.Toast;
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
+
+public class MainActivity extends AppCompatActivity {
+    private TextView phoneTextView;
+    private DatabaseReference databaseReference;
+    private String userEmail = "example@gmail.com"; // Email đăng nhập (giả định)
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        phoneTextView = findViewById(R.id.signin);
+
+        // Chuyển đổi email thành khóa hợp lệ
+        String firebaseKey = userEmail.replace(".", ",");
+
+        // Tham chiếu tới Firebase
+        databaseReference = FirebaseDatabase.getInstance().getReference("users").child(firebaseKey);
+
+        // Lấy số điện thoại liên kết
+        fetchPhoneNumber();
+    }
+
+    private void fetchPhoneNumber() {
+        databaseReference.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                if (snapshot.exists()) {
+                    // Lấy số điện thoại từ Firebase
+                    String phone = snapshot.child("phone").getValue(String.class);
+                    if (phone != null) {
+                        phoneTextView.setText("Số điện thoại liên kết: " + phone);
+                    } else {
+                        phoneTextView.setText("Không tìm thấy số điện thoại liên kết.");
+                    }
+                } else {
+                    Toast.makeText(MainActivity.this, "Không tìm thấy thông tin cho email này.", Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                Log.e("Firebase", "Lỗi: " + error.getMessage());
+                Toast.makeText(MainActivity.this, "Lỗi khi truy xuất dữ liệu.", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+}
+
+
+
