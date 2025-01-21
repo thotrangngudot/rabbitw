@@ -1,0 +1,94 @@
+package com.example.ngaylol;
+import android.content.Intent;
+import android.os.Bundle;
+import android.util.Log;
+import android.widget.Button;
+import androidx.appcompat.app.AppCompatActivity;
+import com.google.android.gms.auth.api.signin.GoogleSignIn;
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
+import com.google.android.gms.auth.api.signin.GoogleSignInClient;
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
+import com.google.android.gms.tasks.Task;
+import com.google.firebase.auth.AuthCredential;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.auth.GoogleAuthProvider;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import android.widget.Toast;
+public class LoginActivity extends AppCompatActivity {
+
+    private static final String TAG = "LoginActivity";
+
+    private GoogleSignInClient googleSignInClient;
+    private FirebaseAuth firebaseAuth;
+    private ActivityResultLauncher<Intent> googleSignInLauncher;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+
+        GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                .requestIdToken(getString(R.string.app_name)) // ID từ google-services.json
+                .requestEmail()
+                .build();
+        googleSignInClient = GoogleSignIn.getClient(this, gso);
+
+        // Khởi tạo FirebaseAuth
+        firebaseAuth = FirebaseAuth.getInstance();
+
+        // Đăng ký ActivityResultLauncher cho Google Sign-In
+        googleSignInLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                        // Nhận kết quả từ Intent
+                        Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(result.getData());
+                        try {
+                            GoogleSignInAccount account = task.getResult(Exception.class);
+                            if (account != null) {
+                                firebaseAuthWithGoogle(account);
+                            }
+                        } catch (Exception e) {
+                            Log.e(TAG, "Google Sign-In failed", e);
+                            Toast.makeText(this, "Google Sign-In failed.", Toast.LENGTH_SHORT).show();
+                        }
+                    } else {
+                        Toast.makeText(this, "Sign-In cancelled.", Toast.LENGTH_SHORT).show();
+                    }
+                }
+        );
+
+        // Xử lý nút đăng nhập
+        Button googleBtn = findViewById(R.id.google_btn);
+        googleBtn.setOnClickListener(v -> signIn());
+    }
+
+    private void signIn() {
+        // Sử dụng launcher để khởi chạy Intent
+        Intent signInIntent = googleSignInClient.getSignInIntent();
+        googleSignInLauncher.launch(signInIntent);
+    }
+
+    private void firebaseAuthWithGoogle(GoogleSignInAccount account) {
+        // Lấy chứng chỉ từ tài khoản Google
+        AuthCredential credential = GoogleAuthProvider.getCredential(account.getIdToken(), null);
+
+        firebaseAuth.signInWithCredential(credential).addOnCompleteListener(this, task -> {
+            if (task.isSuccessful()) {
+                FirebaseUser user = firebaseAuth.getCurrentUser();
+                if (user != null) {
+                    Toast.makeText(this, "Welcome, " + user.getDisplayName(), Toast.LENGTH_SHORT).show();
+                    // Chuyển sang màn hình chính hoặc xử lý logic khác
+                }
+            } else {
+                Log.e(TAG, "Firebase Authentication failed", task.getException());
+                Toast.makeText(this, "Authentication failed.", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+}
+
+
